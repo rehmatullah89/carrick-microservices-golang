@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+    restart: on-failure
+    ports:
+      - 5000:5000
+    volumes:
+      - .:/app
+    env_file:
+      - .env.docker
+    networks:
+      - carrick
+
+networks:
+  carrick:
+    external:
+      name: carrick_external_network

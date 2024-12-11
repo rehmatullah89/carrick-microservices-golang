@@ -1,0 +1,7 @@
+[
+    {
+      "origin": ["https://dog-gear.com"],
+      "method": ["GET"],
+      "responseHeader": ["Content-Type"]
+    }
+]

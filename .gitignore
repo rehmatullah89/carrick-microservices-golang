@@ -1,0 +1,5 @@
+.idea
+.DS_Store
+.env*
+!.env.example
+k8s/carrick-api-test.yaml

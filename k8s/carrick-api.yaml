@@ -1,0 +1,71 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: carrick-api
+  labels:
+    app: carrick-api
+spec:
+  #type: ClusterIP
+  type: NodePort
+  #type: LoadBalancer
+  selector:
+    app: carrick-api
+  ports:
+  - name: web
+    protocol: TCP
+    port: 5000
+---
+# Secret .env
+apiVersion: v1
+kind: Secret
+metadata:
+  name: carrick-secret
+type: Opaque
+stringData:
+  DB_HOST: "db-host"
+  DB_PORT: "db-port"
+  DB_USER: "db-user"
+  DB_PASSWORD: "db-pass"
+  DB_NAME: carrick
+  REDIS_HOST: "reddis-host"
+  REDIS_PORT: "reddis-port"
+  REDIS_PASSWORD: ""
+  CACHE_TTL: "300"
+  ROLLBAR_ENVIRONMENT: production
+  RABBITMQ_HOST: "rabbit-host"
+  RABBITMQ_PORT: "rabbit-port"
+  RABBITMQ_USER: "rabbit-user"
+  RABBITMQ_PASSWORD: "rebbit-pass"
+---
+# Api
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: carrick-api
+  labels:
+    app: carrick-api
+spec:  
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: carrick-api
+  template:
+    metadata:
+      labels:
+        app: carrick-api
+    spec:
+      containers:
+      - name: carrick-api
+        image: gcr.io/pstracker-305808/carrick-api:tag
+        imagePullPolicy: Always
+        envFrom:
+        - secretRef:
+            name: carrick-secret
+        command: ["./carrick-js-api"]
+---

@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgpool-config
+  labels:
+    app: pgpool-config
+data:
+  pgpool.conf: |-
+    listen_addresses = '*'
+    port = 9999
+    socket_dir = '/var/run/pgpool'
+    pcp_listen_addresses = '*'
+    pcp_port = 9898
+    pcp_socket_dir = '/var/run/pgpool'
+    backend_hostname0 = '35.196.144.3'
+    backend_application_name0 = 'master'
+    backend_port0 = 5432
+    backend_weight0 = 1
+    backend_flag0 = 'ALWAYS_PRIMARY|DISALLOW_TO_FAILOVER'
+    backend_hostname1 = '35.231.89.187'
+    backend_application_name1 = 'replica'
+    backend_port1 = 5432
+    backend_weight1 = 1
+    backend_flag1 = 'DISALLOW_TO_FAILOVER'
+    master_slave_mod = on
+    master_slave_sub_mode = 'stream'
+    sr_check_period = 5
+    sr_check_user = 'pgpool'
+    sr_check_password = 'ghbdtnbr'
+    sr_check_database = 'postgres'
+    enable_pool_hba = on
+    #backend_clustering_mode = 'streaming_replication'
+    num_init_children = 32
+    max_pool = 4
+    child_life_time = 300
+    child_max_connections = 0
+    connection_life_time = 0
+    client_idle_limit = 0
+    connection_cache = on
+    disable_load_balance_on_write = 'off'
+    load_balance_mode = on
+    ssl = off
+    failover_on_backend_error = off
+  pool_passwd:  |-
+    pgpool:md54aa2ac01e5c1ae8d576bf4da9ac8ff0a
+    postgres:md52c5acaf99a042d18ca1967ca698e4450
+  pool_hba.conf: |-
+    local   all         all                               trust
+    host    all         all         127.0.0.1/32          trust
+    host    all         all         ::1/128               trust
+    host    all         all         0.0.0.0/0             md5

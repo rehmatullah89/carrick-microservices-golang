@@ -1,0 +1,50 @@
+stages:
+  - npm-install
+  - upload_file
+
+npm-install:
+  image: node
+  stage: npm-install
+  only:
+    - master
+  script:
+    - apt-get update && apt-get install -y gnupg dirmngr wget
+    - echo "deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+    - wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+    - apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common postgresql-client-9.4
+    - chmod +x create_js.sh
+    - mkdir hash
+    - PGPASSWORD=$PG_PASSWORD psql -h $PG_HOST -p $PG_PORT -U postgres carrick -c "SELECT hash FROM public.publishers;" | awk 'length($0) == 33' | awk '{ gsub(/ /,""); print }' > hash.txt
+    - ./create_js.sh
+    - apt-get install -y zip unzip
+    - zip -r hash.zip /hash
+  artifacts:
+    name: "my-build"
+    expire_in: 1 week
+    paths:
+      - "hash.zip"
+  when: manual
+
+
+push-to-storage:
+  image: google/cloud-sdk
+  stage: upload_file
+  only:
+    - master
+  needs:
+    - job: npm-install
+      artifacts: true
+  script:
+    # Setup credentials file to access GCP from our environment variable
+    - echo $GCP_SERVICE_ACCOUNT_JSON > ${HOME}/gcloud-service-key.json
+    - gcloud auth activate-service-account --key-file ${HOME}/gcloud-service-key.json
+    - gcloud config set project $GCP_PROJECT_ID
+    - apt-get install -y zip unzip
+    - unzip hash.zip
+    - gsutil -m cp -r hash/* gs://js-carrick.advoncommerce.com
+    - gsutil setmeta -r -h "Cache-Control:max-age=5" gs://js-carrick.advoncommerce.com/
+
+  after_script:
+    # Cleanup service account credentials file
+    - rm ${HOME}/gcloud-service-key.json
+  when: manual

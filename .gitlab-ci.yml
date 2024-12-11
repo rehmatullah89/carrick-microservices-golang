@@ -1,0 +1,60 @@
+stages:
+  - "build"
+  - "deploy"
+
+build_image_to_gcp_registry:
+  stage: build
+  image: docker:latest
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
+    DOCKER_HOST: tcp://localhost:2375
+  services:
+    - docker:19.03.12-dind
+  script:
+    - docker login -u _json_key -p "$GCLOUD_SERVICE_KEY" https://gcr.io
+    - docker build . -t gcr.io/$GCLOUD_PROJECT_ID/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA
+    - docker push gcr.io/$GCLOUD_PROJECT_ID/$IMAGE_NAME:$CI_COMMIT_SHORT_SHA
+    - docker system prune -a -f
+  rules:
+    - if: '$CI_COMMIT_REF_NAME== "master"'
+      allow_failure: false
+      #when: manual
+
+apply-carrick-deployment:
+  image: google/cloud-sdk
+  stage: deploy
+  needs:
+    - job: build_image_to_gcp_registry
+  script:
+    # Setup credentials file to access GCP from our environment variable
+    - echo $GCP_SERVICE_ACCOUNT_JSON > ${HOME}/gcloud-service-key.json
+    - gcloud auth activate-service-account --key-file ${HOME}/gcloud-service-key.json
+    - gcloud config set project $GCLOUD_PROJECT_ID
+    - gcloud container clusters get-credentials carrick-cluster --region us-east1 --project pstracker-305808
+    #- export TAG=$CI_COMMIT_SHORT_SHA
+    - sed -i "s/carrick-api:tag/carrick-api:${CI_COMMIT_SHORT_SHA}/" ./k8s/carrick-api.yaml
+    - sed -i "s/db-host/$DB_HOST/" ./k8s/carrick-api.yaml
+    - sed -i "s/db-port/$DB_PORT/" ./k8s/carrick-api.yaml
+    - sed -i "s/db-user/$DB_USER/" ./k8s/carrick-api.yaml
+    - sed -i "s/db-pass/$DB_PASSWORD/" ./k8s/carrick-api.yaml
+    - sed -i "s/reddis-host/$REDIS_HOST/" ./k8s/carrick-api.yaml
+    - sed -i "s/reddis-port/$REDIS_PORT/" ./k8s/carrick-api.yaml
+    - sed -i "s/rabbit-host/$RABBITMQ_HOST/" ./k8s/carrick-api.yaml
+    - sed -i "s/rabbit-port/$RABBITMQ_PORT/" ./k8s/carrick-api.yaml
+    - sed -i "s/rabbit-user/$RABBITMQ_USER/" ./k8s/carrick-api.yaml
+    - sed -i "s/rebbit-pass/$RABBITMQ_PASSWORD/" ./k8s/carrick-api.yaml
+    #- uname -a
+    #- apt-get install -y gettext-base
+    #- envsubst '${TAG}' < ./k8s/carrick-api.yaml | kubectl apply -f ./k8s/carrick-api.yaml --namespace=default
+    - kubectl apply -f ./k8s/carrick-api.yaml --namespace=default
+    #- kubectl rollout restart deployment/carrick-api --namespace=default
+    
+  after_script:
+    # Cleanup service account credentials file
+    - rm ${HOME}/gcloud-service-key.json
+  
+  rules:
+    - if: '$CI_COMMIT_REF_NAME== "master"'
+      allow_failure: false
+      when: manual

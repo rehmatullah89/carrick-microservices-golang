@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-carrick
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.global-static-ip-name: gcp-gke-carrick-api
+    #ingress.kubernetes.io/rewrite-target: /
+    kubernetes.io/ingress.allow-http: "false"
+    networking.gke.io/managed-certificates: certificate-carrick-api
+spec:
+  rules:
+  - host: api.carrick.advoncommerce.com
+    http:
+      paths:
+      - path: /*
+        backend:
+          serviceName: carrick-api
+          servicePort: 5000
